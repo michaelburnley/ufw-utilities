@@ -1,0 +1,8 @@
+services:
+  ufw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped 
+    ports:
+      - 1666:1666

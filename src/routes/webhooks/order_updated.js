@@ -45,6 +45,7 @@ export default async (req, res) => {
 
       try {
         await shopify.order.update(order.id, payload);
+        console.log(`Updated order: ${order.id}`);
       } catch (err) {
         console.log(`Error uploading tags for ${order.id}: ${err}`);
       }

@@ -16,6 +16,11 @@ const GetFormattedDate = (item) => {
   return date;
 }
 
+const locations = {
+  106262790459: "San Bernardino",
+  88475402555: "Pomona"
+}
+
 export default async (req, res) => {
   res.sendStatus(200);
 
@@ -26,7 +31,25 @@ export default async (req, res) => {
   const note_test = _.split(note, "\n");
   const tags = [];
 
-  if (!order.customer) return;
+  if (order.location_id) {
+    const location_tag = locations[order.location_id];
+
+    tags.push(location_tag);
+  }
+
+  if (!order.customer) {
+      const payload = {
+        tags: _.uniq(tags),
+      };
+
+
+      try {
+        await shopify.order.update(order.id, payload);
+      } catch (err) {
+        console.log(`Error uploading tags for ${order.id}: ${err}`);
+      }
+    return;
+  }
 
   const note_attributes = [];
 
@@ -136,10 +159,19 @@ note_attributes.push({
       tags.push("Farm Direct");
   });
 
+    if (_.includes(tags, "completed")) {
+      note_attributes.push({
+        name: "Completion Date",
+        value: moment().format("M/D/YYY"),
+      })
+    }
+
+
   const payload = {
     note_attributes,
     tags: _.uniq(tags),
   };
+
 
   try {
     await shopify.order.update(order.id, payload);
@@ -148,3 +180,5 @@ note_attributes.push({
   }
 
 };
+
+

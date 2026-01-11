@@ -1,54 +1,46 @@
 import _ from "lodash";
 import shopify from "../../../config/shopify.js";
-import moment from 'moment'
+import moment from "moment";
 
 const GetMonthWeek = (date) => {
-
   var day = moment(date).day(); //6 = saturday
   var nthOfMoth = Math.ceil(moment(date).date() / 7); //1
 
-  var currMonthName  = moment(date).format('MMMM');
+  var currMonthName = moment(date).format("MMMM");
   return currMonthName + nthOfMoth;
-}
-
-const GetFormattedDate = (item) => {
-  const date = moment(item).set('year', moment().year()).format('M/D');
-  return date;
-}
+};
 
 const locations = {
   106262790459: "San Bernardino",
-  88475402555: "Pomona"
-}
+  88475402555: "Pomona",
+};
 
 export default async (req, res) => {
   res.sendStatus(200);
 
   const order = req.body;
 
-  const { note, line_items } = order;
+  const { note, line_items, location_id } = order;
 
   const note_test = _.split(note, "\n");
   const tags = [];
 
-  if (order.location_id) {
-    const location_tag = locations[order.location_id];
-
+  if (location_id) {
+    const location_tag = locations[location_id];
     tags.push(location_tag);
   }
 
   if (!order.customer) {
-      const payload = {
-        tags: _.uniq(tags),
-      };
+    const payload = {
+      tags: _.uniq(tags),
+    };
 
-
-      try {
-        await shopify.order.update(order.id, payload);
-        console.log(`Updated order: ${order.id}`);
-      } catch (err) {
-        console.log(`Error uploading tags for ${order.id}: ${err}`);
-      }
+    try {
+      await shopify.order.update(order.id, payload);
+      console.log(`Updated order: ${order.id}`);
+    } catch (err) {
+      console.log(`Error uploading tags for ${order.id}: ${err}`);
+    }
     return;
   }
 
@@ -57,9 +49,15 @@ export default async (req, res) => {
   tags.push(..._.split(order.tags, ","));
   note_attributes.push(...order.note_attributes);
 
-  _.each(note_test, (line) => {
+  _.each(note_test, (line, i) => {
     const item = _.trim(_.last(_.split(line, ": ")));
     const note_line = _.lowerCase(line);
+
+    if (_.includes(note_line, "tag")) {
+      const extra_tags = _.split(item, ",");
+      tags.push(...extra_tags);
+      // note_test[i] = "";
+    }
 
     if (_.includes(note_line, "delivery time")) {
       tags.push("delivery");
@@ -72,7 +70,7 @@ export default async (req, res) => {
     if (_.includes(note_line, "delivery date")) {
       tags.push("delivery");
 
-      const date = moment(item).set('year', moment().year()).format('M/D');
+      const date = moment(item).set("year", moment().year()).format("M/D");
       const month_week = GetMonthWeek(item);
       tags.push(month_week);
 
@@ -88,10 +86,28 @@ export default async (req, res) => {
         value: item,
       });
     }
+
+    if (_.includes(note_line, "holiday")) {
+      note_attributes.push({
+        name: "Holiday",
+        value: item,
+      });
+    }
+
+    if (
+      _.includes(note_line, "decedent") ||
+      _.includes(note_line, "deceased")
+    ) {
+      note_attributes.push({
+        name: "Decedent Name",
+        value: item,
+      });
+    }
+
     if (_.includes(note_line, "drop off")) {
-    const date = moment(item).set('year', moment().year()).format('M/D');
-    const month_week = GetMonthWeek(item);
-    tags.push(month_week);
+      const date = moment(item).set("year", moment().year()).format("M/D");
+      const month_week = GetMonthWeek(item);
+      tags.push(month_week);
       note_attributes.push({
         name: "Pickup Date",
         value: date,
@@ -99,16 +115,20 @@ export default async (req, res) => {
       tags.push("drop-offs");
     }
 
-
-
-    if (_.includes(note_line, "pickup time") || _.includes(note_line, "pick up time")) {
-note_attributes.push({
+    if (
+      _.includes(note_line, "pickup time") ||
+      _.includes(note_line, "pick up time")
+    ) {
+      note_attributes.push({
         name: "Pickup Time",
         value: item,
       });
-    } else if (_.includes(note_line, "pickup") || _.includes(note_line, "pick up")) {
-          const date = moment(item).set('year', moment().year()).format('M/D');
-          const month_week = GetMonthWeek(item);
+    } else if (
+      _.includes(note_line, "pickup") ||
+      _.includes(note_line, "pick up")
+    ) {
+      const date = moment(item).set("year", moment().year()).format("M/D");
+      const month_week = GetMonthWeek(item);
 
       tags.push("orders");
       tags.push(month_week);
@@ -133,24 +153,21 @@ note_attributes.push({
       _.includes(product_name, "bouquet") ||
       _.includes(product_name, "boutonn")
     ) {
-
       if (order.note && !_.includes(product_name, "tropical bouquet")) {
         tags.push("orders letty");
         tags.push("orders");
       }
     }
 
-    if (_.includes(product_name, "valentines pre-order")) tags.push("vday");
-    if (_.includes(product_name, "valentines mix box"))
-      tags.push("mother's day");
-    if (_.includes(product_name, "mothers day pre")) tags.push("mother's day");
+    if (item.product_id == 9918894997819 || item.product_id == 9918859444539)
+      tags.push("Valentine's Day");
 
-    // console.log(product_name);
-    if (_.includes(product_name, "mothers day mix box"))
-      tags.push("mother's day");
+    if (item.product_id == 10057900982587 || item.product_id == 10057897541947)
+      tags.push("Mother's Day");
 
     if (_.includes(product_name, "floral workshop fee")) tags.push("workshop");
-    if (_.includes(product_name, "orchid graduation lei") && order.note) tags.push("leis");
+    if (_.includes(product_name, "orchid graduation lei") && order.note)
+      tags.push("leis");
 
     if (
       _.includes(product_name, "bunch of 25 roses") ||
@@ -160,26 +177,22 @@ note_attributes.push({
       tags.push("Farm Direct");
   });
 
-    if (_.includes(tags, "completed")) {
-      note_attributes.push({
-        name: "Completion Date",
-        value: moment().format("M/D/YYY"),
-      })
-    }
-
+  if (_.includes(tags, "completed")) {
+    note_attributes.push({
+      name: "Completion Date",
+      value: moment().format("M/D/YYY"),
+    });
+  }
 
   const payload = {
+    // note: _.join(note_test),
     note_attributes,
     tags: _.uniq(tags),
   };
-
 
   try {
     await shopify.order.update(order.id, payload);
   } catch (err) {
     console.log(`Error uploading tags for ${order.id}: ${err}`);
   }
-
 };
-
-

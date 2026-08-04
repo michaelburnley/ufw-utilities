@@ -1,6 +1,7 @@
 import _ from "lodash";
 import shopify from "../../../config/shopify.js";
 import moment from "moment";
+// import update_customer from "../../utils/update_customer.js";
 
 const GetMonthWeek = (date) => {
   var day = moment(date).day(); //6 = saturday
@@ -64,6 +65,16 @@ export default async (req, res) => {
 
       note_attributes.push({
         name: "Delivery Time",
+        value: item,
+      });
+    }
+
+    if (
+      _.includes(note_line, "po#") ||
+      _.includes(note_line, "purchase order")
+    ) {
+      note_attributes.push({
+        name: "PO #:",
         value: item,
       });
     }
@@ -154,7 +165,9 @@ export default async (req, res) => {
       _.includes(product_name, "boutonn")
     ) {
       if (order.note && !_.includes(product_name, "tropical bouquet")) {
-        tags.push("orders letty");
+        const designer =
+          locations[location_id] === "San Bernardino" ? "juan" : "letty";
+        tags.push(`orders ${designer}`);
         tags.push("orders");
       }
     }
@@ -192,6 +205,7 @@ export default async (req, res) => {
 
   try {
     await shopify.order.update(order.id, payload);
+    // update_customer(order.customer, { location: locations[location_id] });
   } catch (err) {
     console.log(`Error uploading tags for ${order.id}: ${err}`);
   }

@@ -1,5 +1,5 @@
 import Sequelize from "sequelize";
-import glob from "glob";
+import { glob } from "glob";
 import path from "path";
 
 const models = {};
@@ -20,7 +20,7 @@ const {
 const port = DB_EXTERNAL || "3306";
 const dialect = "mysql";
 
-module.exports = async () => {
+export default async () => {
   const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
     host,
     port,
@@ -49,6 +49,8 @@ module.exports = async () => {
     _.each(associations, (association) => {
       association();
     });
+
+    console.log(`Connected to db: ${DB_NAME}`);
 
     return;
   } catch (err) {

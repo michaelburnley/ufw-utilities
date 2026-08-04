@@ -4,4 +4,7 @@ export default async (req, res) => {
   const cart = req.body;
 
   const line_items = cart.line_items;
+
+  console.log("cart updated");
+  console.log(cart);
 };
